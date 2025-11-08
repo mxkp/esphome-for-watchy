@@ -4,7 +4,7 @@
 substitutions:
   # https://esphome.io/guides/configuration-types.html#substitutions
   <<: !include config.yaml
-  <<: !include pins-v2.yaml
+  <<: !include pins-v1.yaml
   <<: !include mdi.yaml
   WAKE_TIME: "3"
   FACE_COUNT: "8"
@@ -37,7 +37,7 @@ esphome:
   on_boot:
     then:
       - delay: 1ms
-      - pcf8563.read_time: # Only for Watchy v2
+      - lambda: "id(ds3231_time).now();"
       - component.update: battery
       - lambda: |-
           const auto now = id(ntp).now();
@@ -1245,7 +1245,7 @@ time:
           - wifi.connected:
           - lambda: "return id(ntp).now().is_valid();"
         then:
-          - pcf8563.write_time: # Only for Watchy v2
+          - lambda: "id(ds3231_time).sync();"
           - component.update: epaper
     on_time:
       # https://esphome.io/components/time/index.html#time-on-time
@@ -1260,10 +1260,10 @@ time:
       - seconds: /10
         then:
           script.execute: alarm_buzzer
-  - platform: pcf8563
-    id: pcf
-    update_interval: never
-    address: "0x51"
+  - platform: ds3231
+    id: ds3231_time
+    time_id: ntp
+    polling_interval: 0s
   ## https://esphome.io/components/time/pcf8563.html
   # - platform: pcf8563 # Only for Watchy v2
   #   id: pcf
@@ -1516,6 +1516,8 @@ font:
 
 esp32:
   board: esp32dev
+  framework:
+    type: arduino
   partitions: min_spiffs.csv
 
 sensor:
@@ -1665,13 +1667,19 @@ external_components:
   #   https://github.com/multipolygon/esphome/commit/6407a74ff9855d515cb16fef67f90c748f9800ea
   #  Add a pubic `do_full_update()` method to trigger the full-refresh only at certain times of day - a full update clears away ghost pixels.
   #   https://github.com/multipolygon/esphome/commit/ecf116058cc4b20007126f9099f4b07f4d46b9dd
-  - components: [ waveshare_epaper ]
-    source:
-      # type: local
-      # path: ../esphome/esphome/components
+  - source:
       type: git
       url: https://github.com/multipolygon/esphome
       ref: dev
+      # type: local
+      # path: ../esphome/esphome/components
+    components: [ waveshare_epaper ]
+  - source:
+      type: git
+      url: https://github.com/zubrick/zmatrix-esphome
+      ref: main
+    # refresh: 10min
+    components: [ ds3231 ]
 
 api:
   # https://esphome.io/components/api.html
